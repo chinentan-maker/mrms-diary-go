@@ -1,6 +1,14 @@
 <!doctype html>
 <html lang="zh-Hant-TW"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!-- GA4 property Mr.&Ms.Diary go (stream https://go.mrlifeday.com). ID G-9DER3KYWN3 only — not the podcast property. -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9DER3KYWN3"></script>
+<script>
+window.dataLayer=window.dataLayer||[];
+function gtag(){dataLayer.push(arguments);}
+gtag('js',new Date());
+gtag('config','G-9DER3KYWN3');
+</script>
 <title>Mr.&amp;Ms.Diary｜團購行事曆・推薦好物</title>
 <meta name="description" content="Mr.&amp;Ms.Diary｜進行中團購、開團預告、推薦文章一次看，幫你快速選好、直接下單。">
 <meta name="theme-color" content="#fbf6ef">
@@ -242,6 +250,14 @@ document.addEventListener("click",function(e){var o=e.target.closest("[data-open
   if(e.target.closest(".sx")||e.target.classList.contains("sheet-bg"))close();
   var li=e.target.closest(".check li");if(li)li.classList.toggle("done")});
 document.addEventListener("keydown",function(e){if(e.key==="Escape")close()});
+// Key events: one cta_click. cta_type is order (.btn 下單/去下單, including the sheet),
+// article (.acard 推薦文章), or video (.rcard 近期強推). link_url is the absolute href.
+document.addEventListener("click",function(e){
+  var a=e.target.closest("a");
+  if(!a||typeof gtag!=="function")return;
+  var type=a.classList.contains("btn")?"order":a.classList.contains("acard")?"article":a.classList.contains("rcard")?"video":"";
+  if(type)gtag("event","cta_click",{cta_type:type,link_url:a.href});
+});
 var y0=null;sh.addEventListener("touchstart",function(e){y0=sh.scrollTop<=0?e.touches[0].clientY:null},{passive:true});
 sh.addEventListener("touchend",function(e){if(y0!==null&&e.changedTouches[0].clientY-y0>80)close();y0=null});
 })();
