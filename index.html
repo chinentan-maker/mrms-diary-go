@@ -254,13 +254,13 @@ function open(id){var d=D[id];if(!d)return;var h="";
   if(d.type==="prod"){h=(d.img?'<img class="simg" src="'+E(d.img)+'" alt="">':"")+"<h3>"+E(d.title)+"</h3>"+(d.price?'<p class="sp">'+E(d.price)+"</p>":"")
     +blk("產品重點",d.point)+blk("適合誰",d.who)+blk("💡 怎麼買最划算",d.deal)+blk("🎁 回饋活動",d.fb)
     +blk(d.start&&!d.url?"開團日":"收單日",d.start&&!d.url?d.start:d.end)+blk("",d.notes,"note")
-    +(d.url?'<a class="btn" href="'+E(d.url)+'" target="_blank" rel="noopener">去下單</a>':"");}
+    +(d.url?'<a class="btn" data-item-id="'+E(id)+'" href="'+E(d.url)+'" target="_blank" rel="noopener">去下單</a>':"");}
   else if(d.type==="bundle"){h="<h3>"+E(d.title)+"</h3>"+(d.price?'<p class="sp">'+E(d.price)+"</p>":"")+(d.line?'<p class="hint" style="text-align:left">'+E(d.line)+"</p>":"")
     +(d.deals.length?blk("享有優惠",d.deals):"")+'<ul class="check">'+d.items.map(function(x){return'<li><span class="bx"></span>'+E(x)+"</li>"}).join("")+"</ul>"
-    +(d.url?'<a class="btn" href="'+E(d.url)+'" target="_blank" rel="noopener">去下單</a><p class="hint">到下單頁照清單加入購物車</p>':"");}
+    +(d.url?'<a class="btn" data-item-id="'+E(id)+'" href="'+E(d.url)+'" target="_blank" rel="noopener">去下單</a><p class="hint">到下單頁照清單加入購物車</p>':"");}
   else{h="<h3>"+E(d.title)+"</h3>"+blk("💡 怎麼買最划算",d.deal)+blk("🎁 回饋活動",d.fb)+blk("🚚 運費・出貨",d.ship||[]);}
-  sc.innerHTML=h;document.body.classList.add("sheet-open");sh.scrollTop=0}
-function close(){document.body.classList.remove("sheet-open")}
+  sc.innerHTML=h;sh.dataset.sheetId=id;document.body.classList.add("sheet-open");sh.scrollTop=0}
+function close(){document.body.classList.remove("sheet-open");delete sh.dataset.sheetId}
 document.addEventListener("click",function(e){var o=e.target.closest("[data-open]");if(o){open(o.dataset.open);return}
   if(e.target.closest(".sx")||e.target.classList.contains("sheet-bg"))close();
   var li=e.target.closest(".check li");if(li)li.classList.toggle("done")});
@@ -271,24 +271,67 @@ document.addEventListener("click",function(e){
   var v=b.getAttribute("data-copy")||"";
   function ok(){b.classList.add("copied");var a=b.querySelector(".acode-act");if(a){a.dataset.prev=a.textContent;a.textContent="已複製";}
     setTimeout(function(){b.classList.remove("copied");if(a)a.textContent=a.dataset.prev||"點一下複製"},1600);
-    if(typeof gtag==="function")gtag("event","cta_click",{cta_type:"copy_code",promo_code:v});}
+    if(typeof gtag==="function")cta({cta_type:"copy_code",promo_code:v},otherMeta(b));}
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(v).then(ok).catch(function(){fallback()})}
   else fallback();
   function fallback(){var t=document.createElement("textarea");t.value=v;document.body.appendChild(t);t.select();try{document.execCommand("copy");ok()}catch(err){}document.body.removeChild(t)}
 });
 // Key events: cta_click
-// order=.btn 下單; lottery=.lbtn 加入社團; affiliate=.aff-go 去官網; article=.acard;
+// cta_type unchanged: order=.btn 下單; lottery=.lbtn; affiliate=.aff-go; article=.acard;
 // video=.rcard; blog=.blog; copy_code=折扣碼; guide=購買攻略／看清單／商品詳情(.more-btn/.perk/[data-open])
+// GA4 event params (custom dimensions): item_id, item_name, item_kind (bundle|product|perk|campaign|other), campaign_name
+function clip(s){s=String(s||"").replace(/\s+/g," ").trim();return s.length>100?s.slice(0,100):s}
+function gname(el){var g=el&&el.closest&&el.closest(".group");if(!g)return"";var n=g.querySelector(".gname");return clip(n&&n.textContent)}
+function kindOf(t){return t==="bundle"?"bundle":t==="prod"?"product":t==="perk"?"perk":""}
+function openId(el){
+  if(!el||!el.closest)return"";
+  if(el.dataset&&el.dataset.open)return el.dataset.open;
+  if(el.dataset&&el.dataset.itemId)return el.dataset.itemId;
+  var card=el.closest(".bcard,.pcard,.perk");
+  if(card){if(card.dataset.open)return card.dataset.open;var o=card.querySelector("[data-open]");if(o)return o.dataset.open||""}
+  if(el.closest("#sheet")&&sh.dataset.sheetId)return sh.dataset.sheetId;
+  return"";
+}
+function itemMeta(id,el){
+  id=id||"";
+  var d=id&&D[id],name="",kind="";
+  if(d){name=d.title||"";kind=kindOf(d.type)}
+  if(!kind&&id){if(/-b\d+$/.test(id))kind="bundle";else if(/-p\d+$/.test(id))kind="product";else if(/perk/.test(id))kind="perk"}
+  if(!name&&el&&el.closest){
+    var b=el.closest(".bcard"),p=el.closest(".pcard"),h3=el.closest("#sheet")&&document.querySelector("#sc h3");
+    if(b){var bn=b.querySelector(".bname");name=bn?bn.textContent:""}
+    else if(p){var pn=p.querySelector(".pname");name=pn?pn.textContent:""}
+    else if(h3)name=h3.textContent;
+  }
+  var camp=el?gname(el):"";
+  if(!camp&&id){var node=document.querySelector('[data-open="'+String(id).replace(/"/g,"")+'"]');if(node)camp=gname(node)}
+  if(!kind&&!id&&el&&el.closest){var grp=el.closest(".group");if(grp){kind="campaign";name=name||gname(grp);camp=camp||name;id=grp.id||""}}
+  return {item_id:id,item_name:clip(name),item_kind:kind||"other",campaign_name:clip(camp)};
+}
+function orderMeta(a){return itemMeta(openId(a),a)}
+function otherMeta(el){
+  var name="",card=el&&el.closest?el.closest(".acard,.rcard,.lcard"):null;
+  if(card){var t=card.querySelector(".at,.lt");if(t)name=t.textContent;else{var img=card.querySelector("img");if(img)name=img.getAttribute("alt")||""}}
+  else if(el)name=el.textContent||"";
+  return {item_id:"",item_name:clip(name),item_kind:"other",campaign_name:gname(el)};
+}
+function cta(base,meta){
+  var p={cta_type:base.cta_type,item_id:meta.item_id||"",item_name:meta.item_name||"",item_kind:meta.item_kind||"other",campaign_name:meta.campaign_name||""};
+  if(base.link_url)p.link_url=base.link_url;
+  if("cta_id" in base)p.cta_id=base.cta_id||"";
+  if("promo_code" in base)p.promo_code=base.promo_code||"";
+  gtag("event","cta_click",p);
+}
 document.addEventListener("click",function(e){
   if(typeof gtag!=="function")return;
   var a=e.target.closest("a");
   if(a){
     var type=a.classList.contains("btn")?"order":a.classList.contains("lbtn")?"lottery":a.classList.contains("aff-go")?"affiliate":a.classList.contains("acard")?"article":a.classList.contains("rcard")?"video":a.classList.contains("blog")?"blog":"";
-    if(type)gtag("event","cta_click",{cta_type:type,link_url:a.href});
+    if(type)cta({cta_type:type,link_url:a.href},type==="order"?orderMeta(a):otherMeta(a));
     return;
   }
   var g=e.target.closest(".more-btn,.perk,[data-open]");
-  if(g)gtag("event","cta_click",{cta_type:"guide",cta_id:g.dataset.open||""});
+  if(g){var id=g.dataset.open||openId(g)||"";cta({cta_type:"guide",cta_id:id},itemMeta(id,g))}
 });
 var y0=null;sh.addEventListener("touchstart",function(e){y0=sh.scrollTop<=0?e.touches[0].clientY:null},{passive:true});
 sh.addEventListener("touchend",function(e){if(y0!==null&&e.changedTouches[0].clientY-y0>80)close();y0=null});
